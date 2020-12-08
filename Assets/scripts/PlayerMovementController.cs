@@ -12,6 +12,9 @@ public class PlayerMovementController : MonoBehaviour
    private float _throwKeyPressedStartTime;
    private BallActionHandler _ballActionHandler;
 
+   private Vector3 lastX, lastZ;
+   private float inputHorX, inputVertY;
+
    void Start()
    {
       // For now just hit this variable to create the singleton
@@ -19,13 +22,16 @@ public class PlayerMovementController : MonoBehaviour
 
       player = GetComponent<Rigidbody>();
       _ballActionHandler = new BallActionHandler(playerCamera, ball, baseBallThrust);
+
+      // Give the websocket a reference to the object so it can know where its position is
+      WebSocketService.Instance.SetLocalPlayerRef(player);
    }
 
    void Update()
    {
-      float inputHorX = Input.GetAxis("Horizontal");
-      float inputVertY = Input.GetAxis("Vertical");
-      PlayerMovement(inputHorX, inputVertY);
+      inputHorX = Input.GetAxis("Horizontal");
+      inputVertY = Input.GetAxis("Vertical");
+      // actual player update is performed in FixedUpdate
 
       if (Input.GetMouseButtonDown(0))
       {
@@ -37,15 +43,35 @@ public class PlayerMovementController : MonoBehaviour
 
          // allows us to click the button with over it with the mouse
          if (EventSystem.current.IsPointerOverGameObject())
-            return; 
-            
+            return;
+
          _ballActionHandler.ThrowBall(player.transform.position, player.transform.forward, _throwKeyPressedStartTime);
       }
    }
 
+   void FixedUpdate() {
+      PlayerMovement(inputHorX, inputVertY);
+   }
+
+   // TODO: maybe don't call the SendPosition when there isn't any change in movement - rethink this
+   // TODO: Maybe don't starting pushing out these until game has started
    void PlayerMovement(float x, float y)
    {
+
       Vector3 playerMovement = new Vector3(x, 0f, y) * maxSpeed * Time.deltaTime;
+
+      // TODO: This doesn't seem to be useful anymore as our actual player updates are applied here, and this would prevent movement, remove.
+      // if (lastX.x == playerMovement.x && lastZ.z == playerMovement.z)
+      // {
+      //    return;
+      // }
+      // Debug.Log("Position change");
+
+      // lastX.x = playerMovement.x;
+      // lastZ.z = playerMovement.z;
+
       transform.Translate(playerMovement, Space.Self);
+
+      WebSocketService.Instance.SendPosition(transform.position);
    }
 }

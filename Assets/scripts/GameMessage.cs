@@ -6,6 +6,7 @@ public class GameMessage
    public string message;
    public string gameStatus;
    public string action;
+   public double timestamp;
 
    public GameMessage(string actionIn, string opcodeIn)
    {

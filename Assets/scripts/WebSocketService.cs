@@ -5,17 +5,29 @@ public class WebSocketService : Singleton<WebSocketService>
 {
    private StatusController _statusController = null;
    private Menu _menu = null;
+   private EnemySpawner _enemySpawner = null;
 
+   public const string FirstToJoinOp = "0";
    public const string RequestStartOp = "1";
    public const string PlayingOp = "11";
    public const string ThrowOp = "5";
    public const string BlockHitOp = "9";
    public const string YouWonOp = "91";
    public const string YouLostOp = "92";
+   public const string OpponentPos = "20";
 
    private bool intentionalClose = false;
    private WebSocket _websocket;
    private string _webSocketDns = "wss://YOUR_SOCKET_DNS/STAGE";
+
+   private Rigidbody localPlayerReference;
+   private string matchId;
+
+   // TODO: move to bottom if keeping
+   public string getMatchId()
+   {
+      return matchId;
+   }
 
    async public void FindMatch()
    {
@@ -62,15 +74,16 @@ public class WebSocketService : Singleton<WebSocketService>
 
    private void ProcessReceivedMessage(string message)
    {
-      //Debug.Log(message);
-
       GameMessage gameMessage = JsonUtility.FromJson<GameMessage>(message);
-      // Debug.Log(JsonUtility.ToJson(gameMessage, true));
-      // Debug.Log(gameMessage.uuid);
 
       if (gameMessage.opcode == PlayingOp)
       {
+         matchId = gameMessage.uuid;
+         //Debug.Log(gameMessage.uuid);
+
          _statusController.SetText(StatusController.Playing);
+         Debug.Log("PlayingOp code");
+         SendPosition(localPlayerReference.position);
       }
       else if (gameMessage.opcode == ThrowOp)
       {
@@ -86,11 +99,22 @@ public class WebSocketService : Singleton<WebSocketService>
          _statusController.SetText(StatusController.YouLost);
          QuitGame();
       }
+      else if (gameMessage.opcode == OpponentPos)
+      {
+         // TODO: received opponent's position
+         Debug.Log("Received opponent position message");
+         PlayerPositionMessage posMessage = JsonUtility.FromJson<PlayerPositionMessage>(message);
+         Debug.Log(posMessage.position);
+
+         _enemySpawner.UpdatePosition(posMessage);
+      } else if (gameMessage.opcode == FirstToJoinOp) {
+         matchId = gameMessage.uuid;
+      }
    }
 
    public async void SendWebSocketMessage(string message)
    {
-      if (_websocket.State == WebSocketState.Open)
+      if (_websocket != null && _websocket.State == WebSocketState.Open)
       {
          // Sending plain text
          await _websocket.SendText(message);
@@ -101,6 +125,21 @@ public class WebSocketService : Singleton<WebSocketService>
    {
       GameMessage blockHitMessage = new GameMessage("OnMessage", BlockHitOp);
       SendWebSocketMessage(JsonUtility.ToJson(blockHitMessage));
+   }
+
+   public void SendPosition(Vector3 positionIn)
+   {
+      // Debug.Log("send pos");
+      SerializableVector3 posIn = positionIn;
+      GameMessage posMessage = new PlayerPositionMessage("OnMessage", OpponentPos, posIn, 0);
+      posMessage.uuid = matchId;
+      //Debug.Log(posMessage.uuid);
+      SendWebSocketMessage(JsonUtility.ToJson(posMessage));
+   }
+
+   public void SetLocalPlayerRef(Rigidbody localPlayerReferenceIn)
+   {
+      localPlayerReference = localPlayerReferenceIn;
    }
 
    public async void QuitGame()
@@ -121,6 +160,7 @@ public class WebSocketService : Singleton<WebSocketService>
       intentionalClose = false;
       _statusController = FindObjectOfType<StatusController>();
       _menu = FindObjectOfType<Menu>();
+      _enemySpawner = FindObjectOfType<EnemySpawner>();
 
       _websocket = new WebSocket(_webSocketDns);
       FindMatch();
