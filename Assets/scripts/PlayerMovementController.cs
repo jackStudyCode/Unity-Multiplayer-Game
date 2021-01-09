@@ -11,20 +11,65 @@ public class PlayerMovementController : MonoBehaviour
 
    private float _throwKeyPressedStartTime;
    private BallActionHandler _ballActionHandler;
-
    private Vector3 lastX, lastZ;
    private float inputHorX, inputVertY;
+   private bool firstZeroReceivedInARow = false;
+   private bool playerIdle = false;
 
-   void Start()
+   private void PlayerMovement(float x, float y)
    {
-      // For now just hit this variable to create the singleton
-      WebSocketService.Instance.init();
+      PlayerIdleCheck(x, y);
 
-      player = GetComponent<Rigidbody>();
-      _ballActionHandler = new BallActionHandler(playerCamera, ball, baseBallThrust);
+      if (!playerIdle) // skip sending extra zero vertors when player isn't moving
+      {
+         Vector3 playerMovementRotation = new Vector3(x, 0f, y) * maxSpeed;
 
-      // Give the websocket a reference to the object so it can know where its position is
-      WebSocketService.Instance.SetLocalPlayerRef(player);
+         Vector3 camRotation = playerCamera.transform.forward;
+         camRotation.y = 0f; // zero out camera's vertical axis so it doesn't make them fly
+
+         // need to clamp camera rotation to x/z only and not y vertical 
+         Vector3 playerMovementWithCameraRotation = Quaternion.LookRotation(camRotation) * playerMovementRotation;
+
+         // limit player's movement speed
+         if (player.velocity.magnitude <= maxSpeed)
+         {
+            // rounded to two decimal places
+            Vector3 roundedVelocity
+               = new Vector3(Mathf.Round(playerMovementWithCameraRotation.x * 100f) / 100f, 0f, Mathf.Round(playerMovementWithCameraRotation.z * 100f) / 100f);
+
+            // Debug.Log("velocity to send: " + roundedVelocity.ToString("f6"));
+
+            player.AddForce(roundedVelocity, ForceMode.VelocityChange);
+
+            if (WebSocketService.Instance.matchInitialized)
+            {
+               WebSocketService.Instance.SendVelocity(roundedVelocity);
+            }
+         }
+      }
+   }
+
+   // A check to see if the user stopped moving
+   private void PlayerIdleCheck(float x, float y)
+   {
+      if (x == 0 && y == 0)
+      {
+         if (firstZeroReceivedInARow)
+         {
+            // we have two zero messages, player not moving, stop sending messages
+            playerIdle = true;
+         }
+         else
+         {
+            firstZeroReceivedInARow = true;
+         }
+      }
+      else
+      {
+         // player moved, set both to false
+         firstZeroReceivedInARow = false;
+         playerIdle = false;
+      }
    }
 
    void Update()
@@ -41,7 +86,7 @@ public class PlayerMovementController : MonoBehaviour
       if (Input.GetMouseButtonUp(0))
       {
 
-         // allows us to click the button with over it with the mouse
+         // allows us to click the button while over it with the mouse
          if (EventSystem.current.IsPointerOverGameObject())
             return;
 
@@ -49,29 +94,22 @@ public class PlayerMovementController : MonoBehaviour
       }
    }
 
-   void FixedUpdate() {
+   void FixedUpdate()
+   {
+      // This is linked to the project settings under Time > Fixed Timestamp
+      // Currently set to .02 seconds, which is 20ms
       PlayerMovement(inputHorX, inputVertY);
    }
 
-   // TODO: maybe don't call the SendPosition when there isn't any change in movement - rethink this
-   // TODO: Maybe don't starting pushing out these until game has started
-   void PlayerMovement(float x, float y)
+   void Start()
    {
+      // For now just hit this variable to create the singleton
+      WebSocketService.Instance.init();
 
-      Vector3 playerMovement = new Vector3(x, 0f, y) * maxSpeed * Time.deltaTime;
+      player = GetComponent<Rigidbody>();
+      _ballActionHandler = new BallActionHandler(playerCamera, ball, baseBallThrust);
 
-      // TODO: This doesn't seem to be useful anymore as our actual player updates are applied here, and this would prevent movement, remove.
-      // if (lastX.x == playerMovement.x && lastZ.z == playerMovement.z)
-      // {
-      //    return;
-      // }
-      // Debug.Log("Position change");
-
-      // lastX.x = playerMovement.x;
-      // lastZ.z = playerMovement.z;
-
-      transform.Translate(playerMovement, Space.Self);
-
-      WebSocketService.Instance.SendPosition(transform.position);
+      // Give the websocket a reference to the object so it can know where its position is
+      WebSocketService.Instance.SetLocalPlayerRef(player);
    }
 }

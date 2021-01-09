@@ -21,8 +21,8 @@ public class ThirdPersonCamController : MonoBehaviour
       _camTransform = transform;
       _zoom = -10;
 
-      // set start position
-      Player.position = new Vector3(Random.Range(-15.0f, 15.0f), 1, Random.Range(-15.0f, 15.0f));
+      // temporary start position when game loads.  Real starting location will be provided by server upon game start
+      Player.position = new Vector3(Random.Range(-15.0f, 15.0f), 2, Random.Range(-15.0f, 15.0f));
    }
 
    void LateUpdate()
@@ -30,12 +30,16 @@ public class ThirdPersonCamController : MonoBehaviour
       CamControl();
    }
 
-   void Update() {
-      if (Input.GetKeyDown("escape") && !_cursorLocked) {
+   void Update()
+   {
+      if (Input.GetKeyDown("escape") && !_cursorLocked)
+      {
          Cursor.visible = false;
          Cursor.lockState = CursorLockMode.Locked;
          _cursorLocked = !_cursorLocked;
-      } else if (Input.GetKeyDown("escape") && _cursorLocked) {
+      }
+      else if (Input.GetKeyDown("escape") && _cursorLocked)
+      {
          Cursor.visible = true;
          Cursor.lockState = CursorLockMode.None;
          _cursorLocked = !_cursorLocked;

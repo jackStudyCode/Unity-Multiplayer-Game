@@ -9,9 +9,13 @@ public class StatusController : MonoBehaviour
    public const string Playing = "Match found. Playing!";
    public const string GameOver = "Game Over";
 
+   public Text _p1;
+   public Text _p2;
+
    private Text _outcomeText;
-   
-   public void SetText(string text) {
+
+   public void SetText(string text)
+   {
       _outcomeText.text = text;
    }
 
@@ -19,9 +23,16 @@ public class StatusController : MonoBehaviour
    {
       _outcomeText = GetComponent<Text>();
       _outcomeText.text = WaitingOnMatch;
+
+      if (_p1 != null && _p2 != null)
+      {
+         _p1.text = "p1";
+         _p2.text = "p2";
+      }
    }
 
-   public bool IsGamePlayActive() {
+   public bool IsGamePlayActive()
+   {
       return _outcomeText.text == Playing;
    }
 }
