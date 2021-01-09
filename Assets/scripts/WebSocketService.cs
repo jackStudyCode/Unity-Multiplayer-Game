@@ -20,9 +20,8 @@ public class WebSocketService : Singleton<WebSocketService>
    public const string BlockHitOp = "9";
    public const string YouWonOp = "91";
    public const string YouLostOp = "92";
-   public const string OpponentPos = "20";
    public const string OpponentVelocity = "21";
-   
+
    public bool matchInitialized = false;
    public string playerNum;
    public string enemyNum;
@@ -67,12 +66,6 @@ public class WebSocketService : Singleton<WebSocketService>
       }
       else if (gameMessage.opcode == OpponentVelocity)
       {
-         PlayerPositionMessage posMessage = JsonUtility.FromJson<PlayerPositionMessage>(message);
-         _enemyPositionHandler.UpdateVelocity(posMessage);
-      }
-      else if (gameMessage.opcode == OpponentPos)
-      {
-         // using velocity param even though it's actually a position
          PlayerPositionMessage posMessage = JsonUtility.FromJson<PlayerPositionMessage>(message);
          _enemyPositionHandler.UpdateVelocity(posMessage);
       }
@@ -169,11 +162,6 @@ public class WebSocketService : Singleton<WebSocketService>
    public void SendVelocity(Vector3 velocityIn)
    {
       SendVectorAsMessage(velocityIn, OpponentVelocity, playerMovementMessageSequence++);
-   }
-
-   public void SendPosition(Vector3 posIn)
-   {
-      SendVectorAsMessage(posIn, OpponentPos, -1);
    }
 
    public void SetLocalPlayerRef(Rigidbody localPlayerReferenceIn)
